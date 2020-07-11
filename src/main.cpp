@@ -54,8 +54,8 @@ int main() {
   //start in lane 1
   int lane = 1;
 
-  //have a reference velocity to target
-  double ref_vel = 49.5; //mph
+  //have a reference velocity to target (starting at 0 max of 50 mph)
+  double ref_vel = 0.0; //mph
 
   h.onMessage([&lane, &ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
@@ -99,6 +99,39 @@ int main() {
           int prev_size = previous_path_x.size();
 
           json msgJson;
+
+          /* Sensor Fusion to avoid car collision */
+          if (prev_size > 0)
+            car_s = end_path_s;
+
+          bool too_close = false;
+
+          //find ref_v to use
+          for (int i = 0; i < sensor_fusion.size(); i++)
+          {
+            float d = sensor_fusion[i][6];
+            if (d < (2+4*lane+2) && d > (2+4*lane-2)) //if car is in my lane
+            {
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = sensor_fusion[i][5];
+
+              //projecting the s value outwards (since using previous path points)
+              check_car_s+= ((double)prev_size*.02*check_speed);
+
+              //check if car is in front of us and gap is smaller then 30 meters then take action
+              if ((check_car_s > car_s) && (check_car_s-car_s < 30))
+              {
+                too_close = true; //too close to the car in front of us
+              }
+            }
+          }
+
+          if (too_close)
+            ref_vel -= .224; //slow down if too close to car in front of you by max accel
+          else if (ref_vel < 49.5)
+            ref_vel += .224; //speed up if going below 50 mph by max accel
 
           //list of widely spaced (x,y) waypoints
           vector<double> ptsx;
