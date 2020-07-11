@@ -101,8 +101,8 @@ int main() {
           json msgJson;
 
           //list of widely spaced (x,y) waypoints
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
+          vector<double> ptsx;
+          vector<double> ptsy;
 
           /**
            * define a path made up of (x,y) points that the car will visit
@@ -122,11 +122,11 @@ int main() {
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
 
-            next_x_vals.push_back(prev_car_x);
-            next_x_vals.push_back(car_x);
+            ptsx.push_back(prev_car_x);
+            ptsx.push_back(car_x);
 
-            next_y_vals.push_back(prev_car_y);
-            next_y_vals.push_back(car_y);
+            ptsy.push_back(prev_car_y);
+            ptsy.push_back(car_y);
           }
           //use the previous path's end point as a starting reference
           else
@@ -140,11 +140,11 @@ int main() {
             ref_yaw = atan2(ref_y-ref_y_prev,ref_x-ref_x_prev);
 
             //use two points that make the path tangent to the previous path's end point
-            next_x_vals.push_back(ref_x_prev);
-            next_x_vals.push_back(ref_x);
+            ptsx.push_back(ref_x_prev);
+            ptsx.push_back(ref_x);
 
-            next_y_vals.push_back(ref_y_prev);
-            next_y_vals.push_back(ref_y);
+            ptsy.push_back(ref_y_prev);
+            ptsy.push_back(ref_y);
           }
 
           /* Setting up points in the future */
@@ -153,39 +153,39 @@ int main() {
           vector<double> next_wp1 = getXY(car_s+60,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
           vector<double> next_wp2 = getXY(car_s+90,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
 
-          next_x_vals.push_back(next_wp0[0]);
-          next_x_vals.push_back(next_wp1[0]);
-          next_x_vals.push_back(next_wp2[0]);
+          ptsx.push_back(next_wp0[0]);
+          ptsx.push_back(next_wp1[0]);
+          ptsx.push_back(next_wp2[0]);
 
-          next_y_vals.push_back(next_wp0[1]);
-          next_y_vals.push_back(next_wp1[1]);
-          next_y_vals.push_back(next_wp2[1]);
+          ptsy.push_back(next_wp0[1]);
+          ptsy.push_back(next_wp1[1]);
+          ptsy.push_back(next_wp2[1]);
 
           /* Local car coordinates */
-          for (int i = 0; i < next_x_vals.size(); i++)
+          for (int i = 0; i < ptsx.size(); i++)
           {
-            double shift_x = next_x_vals[i] - ref_x;
-            double shift_y = next_y_vals[i] - ref_y;
+            double shift_x = ptsx[i] - ref_x;
+            double shift_y = ptsy[i] - ref_y;
 
-            next_x_vals[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
-            next_y_vals[i] = shift_y * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
+            ptsx[i] = shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw);
+            ptsy[i] = shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw);
           }
 
           // create a spline
           tk::spline s;
 
           //set (x,y) points to the spline
-          s.set_points(next_x_vals, next_y_vals);
+          s.set_points(ptsx, ptsy);
           
           //define the actual (x,y) points we will use for the planner
-          vector<double> actual_next_x_vals;
-          vector<double> actual_next_y_vals;
+          vector<double> next_x_vals;
+          vector<double> next_y_vals;
 
           //start with all of the previous path points from last time
           for (int i = 0; i < prev_size; i++)
           {
-            actual_next_x_vals.push_back(previous_path_x[i]);
-            actual_next_y_vals.push_back(previous_path_y[i]);
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
           }
 
           //calcualate how to break up spline points so that we travel at our desired reference velocity
@@ -198,7 +198,7 @@ int main() {
           for (int i = 1; i <= 50-prev_size; i++)
           {
               double N = (target_dist/(.02*ref_vel/2.24)); //mph to m/s
-              double x_point = x_add_on + (target_x)/N;
+              double x_point = x_add_on + target_x/N;
               double y_point = s(x_point);
 
               x_add_on = x_point;
@@ -213,12 +213,12 @@ int main() {
               x_point += ref_x;
               y_point += ref_y;
 
-              actual_next_x_vals.push_back(x_point);
-              actual_next_y_vals.push_back(y_point);
+              next_x_vals.push_back(x_point);
+              next_y_vals.push_back(y_point);
           }
 
-          msgJson["next_x"] = actual_next_x_vals;
-          msgJson["next_y"] = actual_next_y_vals;
+          msgJson["next_x"] = next_x_vals;
+          msgJson["next_y"] = next_y_vals;
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
