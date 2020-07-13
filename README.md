@@ -93,7 +93,9 @@ To generate valid trajectories - sensor fusion was fed into a state manager to d
 2. Is there a car to my left on the same side of the road blocking me from turning
 3. Is there a car to my right on the same side of the road blocking me from turning
 
-Based on each of these lane flags for the state manager the car would either turn left if it was getting to close to the car in front of it, turn right, or slow down. If the car was not too close it would speed up if going below the 50 mph by the maximum allowable accelerationi.
+These flags are set in main.cpp at lines 130 - 137.
+
+Based on each of these lane flags for the state manager the car would either turn left if it was getting to close to the car in front of it, turn right, or slow down. If the car was not too close it would speed up if going below the 50 mph by the maximum allowable acceleration. The state manager is defined in lines 140-148. 
 
 To define a path a spline was used which calculated how to break up the spline points to travel at the desired reference velocity. To create smooth trajectories the following spline library was used: http://kluge.in-chemnitz.de/opensource/spline/. 
 
