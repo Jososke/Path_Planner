@@ -104,32 +104,46 @@ int main() {
           if (prev_size > 0)
             car_s = end_path_s;
 
-          bool too_close = false;
+          bool too_close = false; //car ahead of ego
+          bool left = false; //car to the left of ego (on same side of road)
+          bool right = false; //car to the right of ego (on same side of road)
 
-          //find ref_v to use
+          //find other cars positions
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
-            float d = sensor_fusion[i][6];
-            if (d < (2+4*lane+2) && d > (2+4*lane-2)) //if car is in my lane
-            {
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(vx*vx+vy*vy);
-              double check_car_s = sensor_fusion[i][5];
+            float d = sensor_fusion[i][6]; //distance of current car
+            int cur_car_lane = -999; //default
+            //setting the current lane of the car being checked
+            if (d > 0 && d < 4) cur_car_lane = 0;  
+            if (d > 4 && d < 8) cur_car_lane = 1; 
+            if (d > 8 && d < 12) cur_car_lane = 2; 
+            
+            double vx = sensor_fusion[i][3];
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt(vx*vx+vy*vy);
+            double check_car_s = sensor_fusion[i][5];
 
-              //projecting the s value outwards (since using previous path points)
-              check_car_s+= ((double)prev_size*.02*check_speed);
+            //projecting the s value outwards (since using previous path points)
+            check_car_s+= ((double)prev_size*.02*check_speed);
 
-              //check if car is in front of us and gap is smaller then 30 meters then take action
-              if ((check_car_s > car_s) && (check_car_s-car_s < 30))
-              {
-                too_close = true; //too close to the car in front of us
-              }
-            }
+            //check if car is in front of us and gap is smaller then 30 meters then take action
+            if ((cur_car_lane == lane) && (check_car_s > car_s) && (check_car_s-car_s < 30))
+              too_close = true; //too close to the car in front of us
+            //car is to my left and unsafe to make left turn
+            else if ((cur_car_lane - lane == -1) && (car_s + 30 > check_car_s) && (car_s - 30 < check_car_s)) 
+              left = true;
+            //car is to my right and unsafe to make right turn
+            else if ((cur_car_lane - lane == 1) && (car_s + 30 > check_car_s) && (car_s - 30 < check_car_s)) 
+              right = true;
           }
-
+          //state manager to tell the car what to do based on the lane flags 
           if (too_close)
-            ref_vel -= .224; //slow down if too close to car in front of you by max accel
+            if (lane > 0 && !left) //not in leftmost lane and no car to the left then go left
+              lane--;
+            else if (lane < 2 && !right) //not in rightmost lane and no car to right then go right
+              lane++;
+            else //otherwise slow down
+              ref_vel -= .224; //slow down if too close to car in front of you by max accel
           else if (ref_vel < 49.5)
             ref_vel += .224; //speed up if going below 50 mph by max accel
 
